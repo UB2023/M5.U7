@@ -1,0 +1,122 @@
+---
+    AWSTemplateFormatVersion: 2010-09-09
+    Description: EC2 Apache Instance
+    Metadata:
+      Description: This template creates an EC2 Linux instance
+      Author: Jimmy Ulloa
+      Version: '1.0'
+    Parameters:
+      InstanceType:
+        Type: String
+        Default: t2.micro
+        AllowedValues:
+        - t2.micro
+        - t3.micro
+        - t3a.micro
+        Description: EC2 Apache Instance type
+      Region:
+        Type: String
+        Default: us-east-1
+        AllowedValues:
+        - us-east-1
+        - us-west-1
+        - us-west-2
+        - eu-central-1
+        - eu-west-1
+        - eu-west-2
+        Description: Region in which to launch the EC2 Apache Instance.
+    Mappings:
+      RegionMap:
+        us-east-1:
+          AMI: ami-0dfcb1ef8550277af
+        us-west-1:
+          AMI: ami-00e37a91c1f7657b5
+        us-west-2:
+          AMI: ami-0a9d9566fcbf87b01
+        eu-central-1:
+          AMI: ami-0e8a419cfc7986f92
+        eu-west-1:
+          AMI: ami-0447a12f28fddb066
+        eu-west-2:
+          AMI: ami-0f0e4f3a3e9d6fbec
+    Resources:
+      EC2ApacheInstance:
+        Type: AWS::EC2::Instance
+        Properties:
+          ImageId:
+            Fn::FindInMap:
+            - RegionMap
+            - Ref: Region
+            - AMI
+          InstanceType:
+            Ref: InstanceType
+          KeyName: ubjim01
+          BlockDeviceMappings:
+          - DeviceName: "/dev/xvda"
+            Ebs:
+              VolumeType: gp2
+              DeleteOnTermination: 'true'
+              VolumeSize: '10'
+          Tags:
+            - Key: Env
+              Value: Dev
+            - Key: Name
+              Value:
+                Fn::Join:
+                  - "-"
+                  - - Ref: AWS::StackName
+                    - ec2
+          UserData: 
+            Fn::Base64:
+              !Sub |
+                #!/bin/sh
+                #Update the Instance
+                yum update -y
+    
+                # Install and enable Apache Service
+                yum install httpd.x86_64 php.x86_64 -y
+                systemctl start httpd.service
+                systemctl enable httpd.service
+    
+                # Create index.html file
+                echo "<html><body>" > /var/www/html/index.html
+                echo "<h1>EC2 Instance Information</h1>" >> /var/www/html/index.html
+                echo "<p>Instance ID: $(curl -s http://169.254.169.254/latest/meta-data/instance-id)</p>" >> /var/www/html/index.html
+                echo "<p>Instance Type: $(curl -s http://169.254.169.254/latest/meta-data/instance-type)</p>" >> /var/www/html/index.html
+                echo "<p>Availability Zone: $(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone)</p>" >> /var/www/html/index.html
+                echo "</body></html>" >> /var/www/html/index.html
+
+                # Create a PHP test file
+                echo "<?php phpinfo(); ?>" > /var/www/html/test.php
+               
+                # Add DirectoryIndex directive to httpd.conf
+                echo "DirectoryIndex test.php index.html" >> /etc/httpd/conf/httpd.conf
+
+                # Restart Apache to apply changes
+                systemctl restart httpd.service
+
+          SecurityGroups:
+            - !Ref ApacheSecurityGroup
+    
+      ApacheSecurityGroup:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+          GroupName: 
+            Fn::Join:
+            - "-"
+            - - Ref: AWS::StackName
+              - apache
+          GroupDescription: Apache security Group
+          SecurityGroupIngress:
+            - IpProtocol: "tcp"
+              CidrIp: "0.0.0.0/0"
+              FromPort: 22
+              ToPort: 22
+            - IpProtocol: "tcp"
+              CidrIp: "0.0.0.0/0"
+              FromPort: 80
+              ToPort: 80
+            - IpProtocol: "tcp"
+              CidrIp: "0.0.0.0/0"
+              FromPort: 443
+              ToPort: 443
