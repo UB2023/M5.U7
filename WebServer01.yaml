@@ -1,0 +1,79 @@
+---
+    AWSTemplateFormatVersion: 2010-09-09
+    Description: EC2 Apache Instance
+    Parameters:
+      InstanceType:
+        Type: String
+        Default: t2.micro
+        AllowedValues:
+        - t2.micro
+        Description: EC2 Apache Instance type
+      Region:
+        Type: String
+        Default: us-east-1
+        AllowedValues:
+        - us-east-1
+        Description: Region in which to launch the EC2 Apache Instance.
+    Mappings:
+      RegionMap:
+        us-east-1:
+          AMI: ami-0dfcb1ef8550277af
+    Resources:
+      EC2ApacheInstance:
+        Type: AWS::EC2::Instance
+        Properties:
+          ImageId:
+            Fn::FindInMap:
+            - RegionMap
+            - Ref: Region
+            - AMI
+          InstanceType:
+            Ref: InstanceType
+          KeyName: ubjim01
+          BlockDeviceMappings:
+          - DeviceName: "/dev/xvda"
+            Ebs:
+              VolumeType: gp2
+              DeleteOnTermination: 'true'
+              VolumeSize: '8'
+          Tags:
+            - Key: Env
+              Value: Dev
+            - Key: Name
+              Value:
+                Fn::Join:
+                  - "-"
+                  - - Ref: AWS::StackName
+                    - ec2
+          UserData: 
+            Fn::Base64:
+              !Sub |
+                #!/bin/sh
+                #Update the Instance
+                yum update -y
+                yum install httpd.x86_64 -y
+                systemctl start httpd.service
+                systemctl enable httpd.service
+                echo "Linux Web Server - $(curl http://169.254.169.254/latest/meta-data/public-ipv4)" > /var/www/html/index.html
+    
+          SecurityGroups:
+            - !Ref ApacheSecurityGroup
+    
+      ApacheSecurityGroup:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+          GroupName: 
+            Fn::Join:
+            - "-"
+            - - Ref: AWS::StackName
+              - apache
+          GroupDescription: Apache security Group
+          SecurityGroupIngress:
+            - IpProtocol: "tcp"
+              CidrIp: "0.0.0.0/0"
+              FromPort: 22
+              ToPort: 22
+            - IpProtocol: "tcp"
+              CidrIp: "0.0.0.0/0"
+              FromPort: 80
+              ToPort: 80
