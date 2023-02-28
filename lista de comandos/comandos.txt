@@ -1,0 +1,21 @@
+ssh -i "ubjim01.pem" ec2-user@ec2-3-216-36-152.compute-1.amazonaws.com
+ec2-metadata
+sudo vi WebServer01.yaml
+aws cloudformation create-stack --stack-name webserver01 --template-body file://WebServer01.yaml
+http://ec2-100-26-53-15.compute-1.amazonaws.com
+aws cloudformation describe-stack-resources --stack-name webserver01
+ec2-metadata
+aws cloudformation create-stack --stack-name webserver02 --template-body file://WebServer01.yaml
+ec2-metadata
+http://ec2-34-207-154-71.compute-1.amazonaws.com
+aws cloudformation describe-stack-resources --stack-name webserver02
+sudo vi WebServer01.yaml
+aws cloudformation create-stack --stack-name webserver03 --template-body file://WebServer01.yaml
+ec2-metadata
+http://ec2-54-234-93-145.compute-1.amazonaws.com/index.html
+http://ec2-54-234-93-145.compute-1.amazonaws.com/test.php
+aws cloudformation describe-stack-resources --stack-name webserver03
+aws cloudformation delete-stack --stack-name webserver01
+aws cloudformation delete-stack --stack-name webserver02
+aws cloudformation delete-stack --stack-name webserver03
+exit
